@@ -1,44 +1,38 @@
 #!/usr/bin/env python3
-"""Entry program for make.fun's news-image-20261121 bounty.
+"""Deliver the finished front page for news-image-20261121.
 
-The front page itself is drawn at build time by draw.py (Python + Pillow)
-and committed to this repository as entry.png. This program ships that
-image: it copies entry.png to the output path, standard library only, so
-the bytes the judge sees are always exactly the verified front page and
-every run produces byte-identical output.
-
-Output path, mirroring the kit starter's contract:
-  $MAKEFUN_OUTPUT_DIR/entry.png   when the variable is set
-  /output/entry.png               when /output exists
-  entry.png beside this script    otherwise
+The page is rendered once, while the entry is built, by draw.py, and the
+rendered file sits beside this script as entry.png. This script only moves
+that file to the place the grader reads, with nothing but the standard
+library involved, so the image the judge grades is byte for byte the image
+that was checked during the build.
 """
 
 import os
-import shutil
 import sys
+from pathlib import Path
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-SOURCE = os.path.join(HERE, "entry.png")
-
-
-def output_path():
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR")
-    if out_dir:
-        return os.path.join(out_dir, "entry.png")
-    if os.path.isdir("/output"):
-        return os.path.join("/output", "entry.png")
-    return os.path.join(HERE, "entry.png")
+PAGE = Path(__file__).resolve().parent / "entry.png"
+FALLBACK_DIR = Path("/output")
 
 
-def main():
-    dest = output_path()
-    if os.path.abspath(dest) != os.path.abspath(SOURCE):
-        parent = os.path.dirname(dest)
-        if parent:
-            os.makedirs(parent, exist_ok=True)
-        shutil.copyfile(SOURCE, dest)
+def destination() -> Path:
+    """Pick the output location the harness expects."""
+    override = os.environ.get("MAKEFUN_OUTPUT_DIR")
+    if override:
+        return Path(override) / PAGE.name
+    if FALLBACK_DIR.is_dir():
+        return FALLBACK_DIR / PAGE.name
+    return PAGE
+
+
+def main() -> int:
+    target = destination()
+    if target.resolve() != PAGE.resolve():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(PAGE.read_bytes())
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())
